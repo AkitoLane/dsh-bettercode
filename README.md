@@ -1,120 +1,155 @@
 # dsh-bettercode
 
-[中文](README.zh-CN.md) | English
+A skill for coding agents. It makes the model work through a fixed procedure
+before and after writing code: pick data structures before writing the loop,
+keep functions small and flat, measure before optimizing, run a checklist
+before saying "done".
 
-A coding-discipline skill for AI agents: make the model write code like a
-top-tier engineer — right complexity by design, clean and readable logic,
-measured performance — and stop spaghetti code ("屎山") at the source.
+Language agnostic. Covers new code, refactors and code review.
 
-Language-agnostic. Works for writing new code, refactoring legacy code, and
-code review, in any language.
+[中文说明](README.zh-CN.md)
 
-## Why this skill
+## Why this exists
 
-Modern LLMs already write *working* code. What they often miss is the
-discipline of a senior engineer:
+Models write code that runs. What they skip is the boring part: they stack a
+patch on a hack instead of fixing it, hide an O(n^2) inside a loop that
+"works", and ship the first draft without walking the edge cases.
 
-- picking the data structure **before** writing the loop (hidden O(n²) in "working" code);
-- distinguishing design-time performance (always do) from micro-optimization (measure first);
-- refusing to stack one more patch on a "temporary hack";
-- running a pre-delivery self-check instead of shipping the first draft.
+This skill replaces that judgement call with rules you can check. "Function
+under 40 lines" is verifiable. "Write clean code" is not.
 
-`dsh-bettercode` turns that discipline into a gated workflow with **checkable
-hard rules** (function ≤ 40 lines, nesting ≤ 3, third duplication must be
-abstracted, zero dead code, zero magic values, …) plus two on-demand
-reference handbooks.
+## How it runs
 
-## How it works
+The agent picks one of three routes first:
 
-```
-Router   pick your mode             write new → Phase 1-5 · refactor legacy → refactor
-                                   disciplines + Phase 2-5 · review → checklist + smell catalog
-Phase 1  Before typing (≤2 min)     contract · data scale N · hot path? · latency vs throughput
-                                   → complexity budget (tiny script vs N>10⁵ hot path)
-Phase 2  Design                    data structure choice table · layering · pure core / IO edge
-Phase 3  Write                     hard rules: early return, SRP, DRY (rule of three),
-                                   no dead code, no magic values, no boolean traps, CQS…
-Phase 4  Performance               "always do" list (hoist invariants, batch/parallel IO,
-                                   index before loop…) vs "measure first" micro-opts
-                                   + structure-vs-constant-cost trade-off awareness
-Phase 5  Pre-delivery self-check   10-item checklist, iterate until it passes
-─────────────────────────────────
-Refactor mode                      lock behavior (characterization tests) → preserve & label
-                                   quirks → prove equivalence (differential fuzz) → explicit
-                                   compat shims → report; verification depth ∝ change risk
-Red lines                          7 spaghetti signals → stop and refactor, don't stack
-```
+| Route | What it runs |
+|---|---|
+| Write new code | Phase 1 to 5 |
+| Refactor legacy code | Refactor rules, then Phase 2 to 5 |
+| Review code | Phase 5 checklist plus `references/code-smells.md`, no edits |
 
-Two references load **on demand** (they stay out of context until needed):
+| Phase | What happens |
+|---|---|
+| 1. Before typing | Contract, data size N, hot path or not, latency or throughput, then a complexity budget |
+| 2. Design | Data structure first, layering, pure core with IO pushed to the edges |
+| 3. Write | Hard rules: early return, one job per function, rule of three, no dead code, no magic values, no boolean traps, explicit errors |
+| 4. Performance | The "always do" list (hoist invariants, index before the loop, batch IO) versus micro-optimization, which needs a profile first |
+| 5. Before delivery | 10 item checklist, iterate until it passes |
+
+Refactor mode adds: lock behaviour with characterization tests, keep legacy
+quirks and label them, prove equivalence with differential fuzzing, and freeze
+broken public signatures behind a thin adapter instead of changing them.
+
+Two handbooks load on demand, so they stay out of context until a phase needs
+them:
 
 | File | Loaded when |
 |---|---|
-| `references/performance-patterns.md` | designing for performance / optimizing / debugging slowness — data-structure table, hot-path ritual, IO & memory & concurrency patterns, 12 anti-pattern → fix pairs, measurement method, per-language notes |
-| `references/code-smells.md` | reviewing / refactoring / a red line fires — 20 smells as symptom → cause → prescription, plus refactoring safety rules |
+| `references/performance-patterns.md` | Designing for performance, optimizing, debugging slowness. Data structure table, hot path ritual, IO and memory and concurrency patterns, 12 anti-pattern to fix pairs, measurement method, per language notes |
+| `references/code-smells.md` | Reviewing, refactoring, or when a red line fires. 20 smells as symptom, cause, prescription, plus refactoring safety rules |
 
 ## Install
 
+Clone once, then copy the directory into wherever your host looks for skills.
+
+```bash
+git clone https://github.com/AkitoLane/dsh-bettercode.git
+```
+
 ### DeepSeek Harness (DSH)
 
-Copy the `dsh-bettercode/` directory into your user skill root (auto-discovered,
-no restart needed):
+User level, auto-discovered, no restart needed:
 
-```
-~/.dsh/skills/dsh-bettercode/
-```
-
-Or make it project-scoped:
-
-```
-<project>/.dsh/skills/dsh-bettercode/
+```bash
+mkdir -p ~/.dsh/skills
+cp -r dsh-bettercode ~/.dsh/skills/
 ```
 
-### Other agents (Claude Code / Cursor / Codex CLI / Gemini CLI / opencode)
+Or project scoped:
 
-The skill is a plain `SKILL.md` + `references/` bundle. Drop it into the
-skill/rules location of your tool, or paste `SKILL.md` into your system rules.
+```bash
+mkdir -p <project>/.dsh/skills
+cp -r dsh-bettercode <project>/.dsh/skills/
+```
+
+### Claude Code
+
+```bash
+mkdir -p ~/.claude/skills
+cp -r dsh-bettercode ~/.claude/skills/
+```
+
+Restart the session, then confirm it shows up in your skills or plugins list.
+
+### Cursor, Codex CLI, Gemini CLI, opencode
+
+These hosts read a plain instructions file instead of a skill directory. Keep
+the folder in or near the project and point that file at it.
+
+| Host | File it reads |
+|---|---|
+| Cursor | `AGENTS.md` or `.cursor/rules/dsh-bettercode.mdc` |
+| Codex CLI | `AGENTS.md` (repo root or `~/.codex/`) |
+| Gemini CLI | `GEMINI.md` |
+| opencode | `AGENTS.md` |
+
+Add one line to that file:
+
+```markdown
+For any coding task, follow ./dsh-bettercode/SKILL.md and load the files
+under ./dsh-bettercode/references/ when it says to.
+```
+
+Pasting `SKILL.md` inline also works, but then the two references are out of
+reach, and phases 3 and 4 lose their lookup tables.
+
+### Check that it loaded
+
+Ask for something that should trip the gates:
+
+```
+Use dsh-bettercode to review this file
+```
+
+A loaded skill runs the phase 5 checklist and cites smell names from
+`code-smells.md`. Generic advice means it did not load.
 
 ## Usage
 
-- **Automatic**: the description matches writing / refactoring / reviewing /
-  optimizing tasks, so compliant hosts load it on their own.
-- **Manual**: "Use dsh-bettercode to implement/refactor …"
+Automatic: the description covers writing, refactoring, reviewing and
+optimizing, so a compatible host loads it unasked.
 
-## Effectiveness (A/B)
+Manual: `Use dsh-bettercode to rewrite this module.`
 
-Validated with same-model A/B runs (with skill vs without) on three tasks.
-Full data in [EVALUATION.md](EVALUATION.md):
+## Evidence
 
-- **Refactor legacy spaghetti** (137-line god function, 20 planted smells,
-  O(n²) lookups, bare `except:`, boolean trap): both groups passed a 400-case
-  randomized differential test (behavior provably identical). The skill group
-  eliminated ~19.5/20 smells vs ~17/20, kept the orchestrator at 47 lines
-  (vs 80), fixed the boolean trap the baseline kept, and documented preserved
-  quirks and the complexity argument in the module docstring.
-- **Code review of the same file** (26 planted issues): skill group recall
-  26/26 vs ~24/26 baseline, 9 vs 7 performance findings, and a consistent
-  smell taxonomy instead of ad-hoc wording.
-- **New performance-sensitive component** (sliding-window rate limiter):
-  both groups chose the optimal deque design and scored 100/100 on the AST
-  quality rubric — on well-specified greenfield tasks a strong baseline model
-  already performs; the skill's edge there is explicit complexity arguments
-  and refusal of unmeasured micro-opts.
+Same model, with and without the skill, three tasks. Full numbers and the
+harness that produced them are in [EVALUATION.md](EVALUATION.md) and
+`evaluation/`.
 
-Honest takeaway: the skill does not turn bad output into good output — modern
-baseline models already write decent code. It makes the *ceiling behavior
-deterministic*: full-coverage reviews, disciplined refactors, documented
-trade-offs, every time.
+- Refactoring a 147 line god function with 20 planted smells: both groups
+  passed a 400 case differential test, so behaviour was provably identical.
+  The skill group removed about 19.5 of 20 smells against 17, kept the
+  orchestrator at 47 lines against 80, and fixed the boolean trap the baseline
+  left alone.
+- Reviewing the same file with 26 planted issues: recall 26/26 against 24/26,
+  and 9 performance findings against 7.
+- Writing a sliding window rate limiter from scratch: both groups picked the
+  deque design and both scored 100/100 on the AST rubric. On a well specified
+  greenfield task the baseline is already good.
 
-## Design principles of this skill itself
+So no, it does not turn bad output into good output. It makes the ceiling
+predictable, so coverage does not depend on the model having a good day.
 
-- **Checkable rules over vague advice.** "≤ 40 lines" is verifiable;
-  "write clean code" is not.
-- **Minimal resident context.** SKILL.md is deliberately short; the handbooks
-  load only when the phase calls for them.
-- **Both failure modes.** Spaghetti *and* premature optimization are
-  addressed — micro-opts require profile evidence, written into comments.
-- **Gates, not slogans.** Every phase ends with a checklist that blocks
-  delivery until it passes.
+## Repo layout
+
+```
+SKILL.md                            the skill body
+references/performance-patterns.md  performance handbook
+references/code-smells.md           smell catalogue and refactoring rules
+EVALUATION.md                       A/B writeup with the numbers
+evaluation/                         scoring tools, task specs, six run artifacts
+```
 
 ## License
 

@@ -1,4 +1,4 @@
-# evaluation/ — A/B 评测工具链与产物
+# evaluation/：A/B 评测工具链与产物
 
 本目录让 [EVALUATION.md](../EVALUATION.md) 的每个数字可复现、可审计。
 
