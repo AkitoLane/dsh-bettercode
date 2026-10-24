@@ -1,0 +1,14 @@
+{
+  "name": "dsh-bettercode",
+  "version": "1.0.0",
+  "category": "Coding / Quality",
+  "description": "Make AI agents write code like top-tier engineers: lock in algorithmic complexity and data structures at design time, keep logic clean and readable while implementing (early returns, single responsibility, zero duplication, zero dead code), and enforce a performance + readability self-check before delivery. Prevents spaghetti code at the source. Language-agnostic.",
+  "compat": [
+    "claude-code",
+    "claude-ai",
+    "cursor",
+    "codex-cli",
+    "gemini-cli",
+    "opencode"
+  ]
+}
